@@ -26,3 +26,11 @@
 *.exe
 *.out
 *.app
+
+# Haskell intermediate files
+*.hi
+
+# Python bytecode
+*.pyc
+*.pyo
+
