@@ -1,5 +1,12 @@
 #! /usr/bin/env python
 
+import numpy as np
+import sys
+
+from OpenGL.GL import *
+from OpenGL.GLUT import *
+from OpenGL.GLU import *
+
 class Singleton(type):
     def __init__(cls, n, b, k):
         type.__init__(cls, n, b, k)
@@ -16,13 +23,13 @@ class Base(object):
         pass
 
 class HasParent(Base):
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent=None, *args, **kwargs):
         super(HasParent, self).__init__(*args, **kwargs)
         
         self.parent = parent
 
 class HasChildren(Base):
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(HasChildren, self).__init__(*args, **kwargs)
         
         self.children = []
@@ -31,7 +38,7 @@ class HasChildren(Base):
         self.children.append(child)
 
         if isinstance(child, HasParent):
-            chold.parent = self
+            child.parent = self
 
 class Point3(Base):
     def __init__(self, x, y, z, *args, **kwargs):
@@ -58,14 +65,39 @@ class Matrix4x4(Base):
     def create_identity_matrix():
         return Matrix4x4(values=np.eye(4, dtype=np.float32))
 
+    @staticmethod
+    def create_translate_matrix(x, y, z):
+        return Matrix4x4(values=np.array([[1, 0, 0, x],
+                                          [0, 1, 0, y],
+                                          [0, 0, 1, z],
+                                          [0, 0, 0, 1]], dtype=np.float32))
+
 class Node(HasParent):
     def __init__(self, *args, **kwargs):
         super(Node, self).__init__(*args, **kwargs)
 
-class Group(HasParent, HasChildren):
+    def draw_apply(self):
+        if isinstance(self, HasChildren):
+            for child in self.children:
+                child.draw_apply()
+
+        self.draw_begin()
+        self.draw()
+        self.draw_end()
+
+    def draw_begin(self):
+        pass
+
+    def draw(self):
+        pass
+
+    def draw_end(self):
+        pass
+
+class Group(Node, HasChildren):
     def __init__(self, *args, **kwargs):
-        HasParent.__init__(*args, **kwargs)
-        HasChildren.__init__(*args, **kwargs)
+        Node.__init__(self, *args, **kwargs)
+        HasChildren.__init__(self, *args, **kwargs)
 
 class Graphic(Node):
     def __init__(self, *args, **kwargs):
@@ -78,45 +110,151 @@ class Geometry(Graphic):
         self.vertices = vertices
         self.vertex_indices = vertex_indices
 
+        self.setup_geometry()
+
+    def setup_geometry(self):
+        self.vertex_buffer, self.vertex_index_buffer = glGenBuffers(2)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.vertex_buffer)
+        glBufferData(GL_ARRAY_BUFFER, self.vertices, GL_STATIC_DRAW)
+        
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.vertex_index_buffer)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.vertex_indices, GL_STATIC_DRAW)
+        
 class QuadSet(Geometry):
     def __init__(self, vertices, vertex_indices, *args, **kwargs):
         super(QuadSet, self).__init__(vertices=vertices,
                                       vertex_indices=vertex_indices,
                                       *args, **kwargs)
 
+    def draw(self):
+        glEnableVertexAttribArray(0)
+        
+        glBindBuffer(GL_ARRAY_BUFFER, self.vertex_buffer)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, None)
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.vertex_index_buffer)
+        glDrawElements(GL_QUADS, 6, GL_UNSIGNED_SHORT, None)
+
+        glEnableVertexAttribArray(0)
+        
 class Cube(QuadSet):
     def __init__(self, size, *args, **kwargs):
-        vertices, vertex_indices = create_geometry(size)
+        vertices, vertex_indices = self.create_geometry(size)
         
         super(QuadSet, self).__init__(vertices=vertices,
                                       vertex_indices=vertex_indices,
                                       *args, **kwargs)
 
-        @staticmethod
-        def create_geometry(size):
-            sz = size / 2
-            vertices = np.array([[-sz, -sz, -sz],
-                                 [-sz,  sz, -sz],
-                                 [ sz,  sz, -sz],
-                                 [ sz, -sz, -sz],
-                                 [-sz, -sz,  sz],
-                                 [-sz,  sz,  sz],
-                                 [ sz,  sz,  sz],
-                                 [ sz, -sz,  sz]], dtype=np.float32).flatten()
-            vertex_indices = np.array([[0, 1, 2, 3],
-                                       [4, 5, 6, 7],
-                                       [0, 1, 5, 4],
-                                       [1, 2, 6, 5],
-                                       [2, 3, 7, 6],
-                                       [3, 0, 4, 7]], dtype=np.int32).flatten()
+    @staticmethod
+    def create_geometry(size):
+        sz = float(size) / 2
+        vertices = np.array([[-sz, -sz, -sz],
+                             [-sz,  sz, -sz],
+                             [ sz,  sz, -sz],
+                             [ sz, -sz, -sz],
+                             [-sz, -sz,  sz],
+                             [-sz,  sz,  sz],
+                             [ sz,  sz,  sz],
+                             [ sz, -sz,  sz]], dtype=np.float32).flatten()
+        vertex_indices = np.array([[0, 1, 2, 3],
+                                   [4, 5, 6, 7],
+                                   [0, 1, 5, 4],
+                                   [1, 2, 6, 5],
+                                   [2, 3, 7, 6],
+                                   [3, 0, 4, 7]], dtype=np.uint16).flatten()
 
-            return vertices, vertex_indices
+        return vertices, vertex_indices
         
 class TransformGroup(Group):
-    def __init__(self, matrix, *args, **kwargs):
+    def __init__(self, matrix=Matrix4x4.create_identity_matrix(), *args, **kwargs):
         super(TransformGroup, self).__init__(*args, **kwargs)
 
         self.matrix = matrix
 
 class World(Group):
     __metaclass__ = Singleton
+
+    def __init__(self, *args, **kwargs):
+        super(World, self).__init__(*args, **kwargs)
+
+def init_world():
+    world = World()
+    rot_group = TransformGroup()
+    trans_group = TransformGroup()
+    cube = Cube(0.2)
+
+    trans_group.add_child(cube)
+    rot_group.add_child(trans_group)
+    world.add_child(rot_group)
+
+def draw_fn():
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glLoadIdentity()					# Reset The View
+
+    World().draw_apply()
+    
+    glutSwapBuffers()
+
+def resize_fn(width, height):
+    return
+
+    if height == 0:
+        height = 1
+
+    glViewport(0, 0, width, height)		# Reset The Current Viewport And Perspective Transformation
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    gluPerspective(45.0, float(width) / float(height), 0.1, 100.0)
+    glMatrixMode(GL_MODELVIEW)
+
+def kb_fn(key, x, y):
+    if key == 27:
+        sys.exit(0)
+
+def init_glut(width, height):
+    glutInit(sys.argv)
+    
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH)
+
+    glutInitWindowSize(width, height)
+
+    glutInitWindowPosition(0, 0)
+
+    window = glutCreateWindow('Cube')
+
+    glutDisplayFunc(draw_fn)
+
+    #glutIdleFunc(draw_fn)
+
+    glutReshapeFunc(resize_fn)
+
+    glutKeyboardFunc(kb_fn)
+
+def init_gl(width, height):
+    glClearColor(0.0, 0.0, 0.0, 0.0)	# This Will Clear The Background Color To Black
+    glClearDepth(1.0)					# Enables Clearing Of The Depth Buffer
+    glDepthFunc(GL_LESS)				# The Type Of Depth Test To Do
+    glEnable(GL_DEPTH_TEST)				# Enables Depth Testing
+    glShadeModel(GL_SMOOTH)				# Enables Smooth Color Shading
+
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()					# Reset The Projection Matrix
+										# Calculate The Aspect Ratio Of The Window
+    gluPerspective(45.0, float(width) / float(height), 0.1, 100.0)
+
+    glMatrixMode(GL_MODELVIEW)
+
+def main():
+    w, h = 640, 480
+    
+    init_glut(w, h)
+    init_gl(w, h)
+    
+    init_world()
+
+    glutMainLoop()
+    
+    
+if __name__ == '__main__':
+    main()
