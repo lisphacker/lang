@@ -2,18 +2,25 @@ module Counter where
 
 import Prelude hiding ((>>=), return)
 import Control.Monad
+import Control.Applicative
 
 data Counter a = Count a
 instance (Show a) => Show (Counter a) where
-    show (Count x) = "<" ++ show x ++ ">"
+  show (Count x) = "<" ++ show x ++ ">"
 
 count :: (Counter a) -> a
 count (Count x) = x
 
+instance Functor Counter where
+  fmap f (Count a) = Count (f a)
+  
+instance Applicative Counter where
+  pure x = Count x
+  Count f <*> Count x = Count (f x)
+  
 instance Monad Counter where
-    return x = Count x
-
-    m >>= f = f (count m)
+  return x = Count x
+  m >>= f = f (count m)
 
 inc = Count . ((+) 1)
 
