@@ -34,3 +34,6 @@
 *.pyc
 *.pyo
 
+# R history
+*.Rhistory
+*.S+history
