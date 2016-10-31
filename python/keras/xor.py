@@ -24,17 +24,13 @@ def gen_data(n=5):
     i = np.random.randint(0, 2, size=(n, 2))
     o = i[:, 0] ^ i[:, 1]
 
-    for (i1, i2), o1 in zip(i, o):
-        print i1, i2, o1
     return np.array(i, dtype='float32'), np.array(o, dtype='float32')
 
 @completion_status('Creating model', 'Model created')
 def create_model():
-    model = Sequential([Dense(2, input_dim=2),
+    model = Sequential([Dense(2, input_dim=2, init='uniform'),
                         Activation('sigmoid'),
-                        Dense(2),
-                        Activation('sigmoid'),
-                        Dense(1),
+                        Dense(1, init='uniform'),
                         Activation('sigmoid')])
 
     model.compile(optimizer='rmsprop',
@@ -73,7 +69,7 @@ def plot(model):
     plt.show()
     
     
-def run(train_size=1000, test_size=100):
+def run(train_size=1000000, test_size=100):
     train_inputs, train_outputs = gen_data(train_size)
     test_inputs, test_outputs = gen_data(test_size)
     
