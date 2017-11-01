@@ -152,6 +152,7 @@ class Geometry(Graphic):
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.vertex_indices, GL_STATIC_DRAW)
 
         self.vertex_colors = np.array(np.random.rand(len(self.vertices)), dtype=np.float32)
+        
             
         glBindBuffer(GL_ARRAY_BUFFER, self.vertex_color_buffer)
         glBufferData(GL_ARRAY_BUFFER, self.vertex_colors, GL_STATIC_DRAW)
@@ -168,8 +169,8 @@ class QuadSet(Geometry):
         glBindBuffer(GL_ARRAY_BUFFER, self.vertex_buffer)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, None)
 
-        glBindBuffer(GL_ARRAY_BUFFER, self.vertex_color_buffer)
-        glColorPointer(4, GL_FLOAT, 0, None)
+        #glBindBuffer(GL_ARRAY_BUFFER, self.vertex_color_buffer)
+        #glColorPointer(4, GL_FLOAT, 0, None)
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.vertex_index_buffer)
         glDrawElements(GL_QUADS, 24, GL_UNSIGNED_SHORT, None)
@@ -267,8 +268,11 @@ za = 0.0
 
 def idle_fn():
     global xa, ya, za
-    
-    World().children[0].children[0].matrix = Matrix4x4.create_rotate_matrix(xa, ya, za)
+
+    try:
+        World().children[0].children[0].matrix = Matrix4x4.create_rotate_matrix(xa, ya, za)
+    except:
+        pass
 
     xa += 0.01
     ya += 0.02
