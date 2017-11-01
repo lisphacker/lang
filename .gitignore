@@ -33,6 +33,7 @@
 # Python bytecode
 *.pyc
 *.pyo
+.venv
 
 # R history
 *.Rhistory
