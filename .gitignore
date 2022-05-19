@@ -38,3 +38,6 @@
 # R history
 *.Rhistory
 *.S+history
+
+# VSCode
+/.vscode

@@ -1,0 +1,10 @@
+version: "3.9"
+
+volumes:
+  lang-vol:
+
+services:
+  dev:
+    build: .
+    volumes:
+      - lang-vol:/root
