@@ -40,8 +40,8 @@ int main() {
 
   std::vector<Q<FracBits>> qv(v.size());
   std::vector<Q<FracBits>> qc(c.size());
-  std::transform(v.begin(), v.end(), qv.begin(), [](float f) { return Q<FracBits>(f); });
-  std::transform(c.begin(), c.end(), qc.begin(), [](float f) { return Q<FracBits>(f); });
+  std::transform(v.begin(), v.end(), qv.begin(), [](auto f) { return Q<FracBits>(f); });
+  std::transform(c.begin(), c.end(), qc.begin(), [](auto f) { return Q<FracBits>(f); });
 
   float s = 0;
   Q<FracBits> qs(0.0f);
